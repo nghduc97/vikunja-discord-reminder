@@ -43,7 +43,7 @@ class WebhookRequest(BaseModel):
     data: dict
 
 
-@app.post("/webhook")
+@app.post("/")
 async def webhook(request: WebhookRequest):
     if request.event_name == "task.reminder.fired":
         data = ReminderEventData(**request.data)
