@@ -47,6 +47,8 @@ class WebhookRequest(BaseModel):
 async def webhook(request: WebhookRequest):
     if request.event_name == "task.reminder.fired":
         data = ReminderEventData(**request.data)
+        description = convert(data.task.description).content
+        due_date_ts = int(datetime.fromisoformat(data.task.due_date).timestamp())
         dc_webhook = DiscordWebhook(
             url=DISCORD_WEBHOOK_URL,
             avatar_url="https://cdn.discordapp.com/attachments/1418191631726678182/1533427003989037245/894bd400d7c5bde78a65ba02e326798ccfb82006.png",
@@ -56,12 +58,18 @@ async def webhook(request: WebhookRequest):
 # Task: {data.task.title}
 Mentions: {", ".join(f"<@{user_id}>" for user_id in MENTION_USER_IDS)}
 Project: {data.project.title}
-Due Date: <t:{int(datetime.fromisoformat(data.task.due_date).timestamp())}:F>
+{f'''Due Date: <t:{due_date_ts}:F>''' if due_date_ts > 0 else ""}
+{
+                f'''
 Description:
 ```markdown
-{convert(data.task.description).content}
+{description}
 ```
-""",
+'''.strip()
+                if len(description or "") > 0
+                else ""
+            }
+""".strip(),
             rate_limit_retry=True,
         )
         dc_webhook.execute()
