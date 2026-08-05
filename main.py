@@ -1,19 +1,30 @@
 import os
 from datetime import datetime
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import uvicorn
-from discord_webhook import DiscordWebhook
+from apprise import Apprise
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from html_to_markdown import convert
 from pydantic import BaseModel
 
 load_dotenv()
 
-DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL") or ""
-MENTION_USER_IDS = (os.environ.get("MENTION_USER_IDS") or "").split(",")
-if DISCORD_WEBHOOK_URL == "":
-    raise ValueError("DISCORD_WEBHOOK_URL environment variable is not set")
+APPRISE_TARGET_URL = os.environ.get("APPRISE_TARGET_URL") or ""
+if APPRISE_TARGET_URL == "":
+    raise ValueError("APPRISE_TARGET_URL environment variable is not set")
+
+# Set the avatar URL for the notification
+avatar_url = "https://copyparty.lazyc97.top/vikunja_reminder/icon.png"
+target_url = urlsplit(APPRISE_TARGET_URL)
+target_query = dict(parse_qsl(target_url.query))
+target_query["avatar_url"] = avatar_url
+APPRISE_TARGET_URL = urlunsplit(target_url._replace(query=urlencode(target_query)))
+
+
+notifier = Apprise()
+notifier.add(APPRISE_TARGET_URL)
 
 app = FastAPI()
 
@@ -45,39 +56,27 @@ class WebhookRequest(BaseModel):
 
 @app.post("/")
 async def webhook(request: WebhookRequest):
-    if request.event_name == "task.reminder.fired":
-        data = ReminderEventData(**request.data)
-        description = convert(data.task.description).content
-        due_date_ts = int(datetime.fromisoformat(data.task.due_date).timestamp())
-        dc_webhook = DiscordWebhook(
-            url=DISCORD_WEBHOOK_URL,
-            avatar_url="https://cdn.discordapp.com/attachments/1418191631726678182/1533427003989037245/894bd400d7c5bde78a65ba02e326798ccfb82006.png",
-            username="Vikunja Reminder Bot",
-            allow_mentions=True,
-            content=f"""
-# Task: {data.task.title}
-Mentions: {", ".join(f"<@{user_id}>" for user_id in MENTION_USER_IDS)}
+    if request.event_name != "task.reminder.fired":
+        return Response(status_code=400, content="Unsupported event type")
+
+    data = ReminderEventData(**request.data)
+    title = f"🔔 Reminder: {data.task.title}"
+    description = convert(data.task.description).content
+    due_date = datetime.fromisoformat(data.task.due_date)
+    message = f"""
 Project: {data.project.title}
-{f'''Due Date: <t:{due_date_ts}:F>''' if due_date_ts > 0 else ""}
-{
-                f'''
-Description:
-```markdown
-{description}
-```
-'''.strip()
-                if len(description or "") > 0
-                else ""
-            }
-""".strip(),
-            rate_limit_retry=True,
-        )
-        dc_webhook.execute()
-    return {"status": "ok"}
+{f"Due Date: {due_date}" if due_date.timestamp() > 0 else ""}
+{f'''\nDescription:\n{description}''' if len(description or "") > 0 else ""}
+""".strip()
+    if notifier.notify(body=message, title=title) == True:
+        return {"status": "ok"}
+
+    return Response(status_code=500, content="Failed to send notification")
 
 
 def main():
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)
 
 
 if __name__ == "__main__":

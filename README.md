@@ -1,14 +1,15 @@
-# Vikunja Discord Reminder
+# Vikunja Reminder
 
-A web server to receive webhook from Vikunja for reminder fired event and send message on Discord.
+A web server to receive webhook from Vikunja for reminder fired event and send notifications through Apprise.
 
 ## How to run
 
-Create `.env` file with variables:
+Create `.env` file with your Apprise target URL:
 ```
-DISCORD_WEBHOOK_URL="webhook you create on discord"
-MENTION_USER_IDS="list of user ID you wanna get mentioned, separated by comma"
+APPRISE_TARGET_URL="your Apprise target URL"
 ```
+
+See the [Apprise URL documentation](https://github.com/caronc/apprise) for supported notification services.
 
 Run the server:
 ```
