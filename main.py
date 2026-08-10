@@ -14,22 +14,31 @@ load_dotenv()
 APPRISE_TARGET_URL = os.environ.get("APPRISE_TARGET_URL") or ""
 if APPRISE_TARGET_URL == "":
     raise ValueError("APPRISE_TARGET_URL environment variable is not set")
+VIKUNJA_DOMAIN = os.environ.get("VIKUNJA_DOMAIN") or "https://vikunja.cloud"
 
 # Set the avatar URL for the notification
 avatar_url = "https://copyparty.lazyc97.top/vikunja_reminder/icon.png"
-target_url = urlsplit(APPRISE_TARGET_URL)
-target_query = dict(parse_qsl(target_url.query))
-target_query["avatar_url"] = avatar_url
-APPRISE_TARGET_URL = urlunsplit(target_url._replace(query=urlencode(target_query)))
 
 
-notifier = Apprise()
-notifier.add(APPRISE_TARGET_URL)
+def get_apprise_url(task_id: str) -> str:
+    target_url = urlsplit(APPRISE_TARGET_URL)
+    query = dict(parse_qsl(target_url.query))
+    query["avatar_url"] = avatar_url
+    query["click"] = f"{VIKUNJA_DOMAIN}/tasks/{task_id}"
+    return urlunsplit(target_url._replace(query=urlencode(query)))
+
+
+def send_notification(task_id: int, title: str, body: str) -> bool:
+    service = Apprise()
+    if not service.add(get_apprise_url(str(task_id))):
+        return False
+    return service.notify(body=body, title=title) == True
 
 app = FastAPI()
 
 
 class TaskData(BaseModel):
+    id: int
     title: str
     description: str
     due_date: str
@@ -68,7 +77,7 @@ Project: {data.project.title}
 {f"Due Date: {due_date}" if due_date.timestamp() > 0 else ""}
 {f'''\nDescription:\n{description}''' if len(description or "") > 0 else ""}
 """.strip()
-    if notifier.notify(body=message, title=title) == True:
+    if send_notification(data.task.id, title=title, body=message):
         return {"status": "ok"}
 
     return Response(status_code=500, content="Failed to send notification")

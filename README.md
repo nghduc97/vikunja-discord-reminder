@@ -7,6 +7,7 @@ A web server to receive webhook from Vikunja for reminder fired event and send n
 Create `.env` file:
 ```
 APPRISE_TARGET_URL="your Apprise target URL"  # Apprise target URL
+VIKUNJA_DOMAIN="https://your-vikunja-instance.com"  # Public domain of your Vikunja instance
 PORT="8080"                              # Server port; defaults to 8000
 ```
 
