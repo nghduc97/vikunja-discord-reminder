@@ -4,9 +4,10 @@ A web server to receive webhook from Vikunja for reminder fired event and send n
 
 ## How to run
 
-Create `.env` file with your Apprise target URL:
+Create `.env` file:
 ```
-APPRISE_TARGET_URL="your Apprise target URL"
+APPRISE_TARGET_URL="your Apprise target URL"  # Apprise target URL
+PORT="8080"                              # Server port; defaults to 8000
 ```
 
 See the [Apprise URL documentation](https://github.com/caronc/apprise) for supported notification services.
