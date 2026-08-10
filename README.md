@@ -2,6 +2,8 @@
 
 A web server to receive webhook from Vikunja for reminder fired event and send notifications through Apprise.
 
+**Note:** Currently designed for [ntfy](https://ntfy.sh).
+
 ## How to run
 
 Create `.env` file:
